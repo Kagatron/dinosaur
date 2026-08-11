@@ -60,7 +60,7 @@
             flex: 1;
             background: #ffffff;
             border-radius: 16px;
-            padding: 16px;
+            padding: 16px 16px 180px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -116,10 +116,18 @@
             border-left: 3px solid #f2b736;
         }
         .answer-area {
-            margin-top: 12px;
+            position: fixed;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            z-index: 20;
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 12px;
+            box-shadow: 0 -2px 16px rgba(0,0,0,0.12);
         }
         .option-btn {
             flex: 1 1 0;
@@ -141,6 +149,8 @@
         .option-btn:disabled { cursor: default; }
         .result-tip {
             width: 100%;
+            max-height: 32vh;
+            overflow-y: auto;
             margin: 6px 0 0;
             padding: 10px;
             border-radius: 10px;
@@ -276,7 +286,10 @@ function newQuestion(){
     if(sizeWeight.length) rows.push('<div class="clue-row">'+sizeWeight.join(sp)+'</div>');
     if(currentDino["外形特征"]) rows.push('<div class="clue-row">✨'+currentDino["外形特征"]+'</div>');
     if(currentDino["生活习性"]) rows.push('<div class="clue-row">🌿'+currentDino["生活习性"]+'</div>');
+    // 提示按钮紧跟线索末尾，属于题目的一部分
     clueWrap.innerHTML = rows.join("");
+    clueWrap.appendChild(hintBtn);
+    clueWrap.appendChild(hintArea);
 }
 
 // 提示按钮：点击后直接替换为命名原因（不显示"命名原因"字样，不显示别名）
