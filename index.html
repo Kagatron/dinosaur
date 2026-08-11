@@ -38,6 +38,11 @@
             gap: 6px;
         }
         .stat-bar div { white-space: nowrap; }
+        .stat-bar .stat-label { color: #000; font-weight: 400; }
+        .stat-bar span.num { font-weight: 700; }
+        .stat-bar #total, .stat-bar #rate { color: #2f6fd0; }
+        .stat-bar #ok { color: #22a055; }
+        .stat-bar #no { color: #e03636; }
         .reset-btn {
             background: rgba(255,255,255,0.92);
             color: #e74c3c;
@@ -112,16 +117,20 @@
         }
         .answer-area {
             margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .option-btn {
-            width: 100%;
-            padding: 14px;
-            margin: 7px 0;
+            flex: 1 1 0;
+            min-width: 0;
+            padding: 14px 6px;
+            margin: 0;
             border: none;
             border-radius: 12px;
             background: #e8f5e9;
             color: #2c5c42;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             transition: 0.2s;
@@ -131,7 +140,8 @@
         .option-btn.wrong { background: #dc3545; color: #fff; }
         .option-btn:disabled { cursor: default; }
         .result-tip {
-            margin: 10px 0;
+            width: 100%;
+            margin: 6px 0 0;
             padding: 10px;
             border-radius: 10px;
             font-size: 15px;
@@ -164,10 +174,10 @@
 <body>
     <div class="top-bar">
         <div class="stat-bar">
-            <div>总题 <span id="total">0</span></div>
-            <div>✅<span id="ok">0</span></div>
-            <div>❌<span id="no">0</span></div>
-            <div><span id="rate">0%</span></div>
+            <div><span class="stat-label">总题</span> <span class="num" id="total">0</span></div>
+            <div><span class="stat-label">正确</span> <span class="num" id="ok">0</span></div>
+            <div><span class="stat-label">错误</span> <span class="num" id="no">0</span></div>
+            <div><span class="stat-label">正确率</span> <span class="num" id="rate">0%</span></div>
         </div>
         <button class="reset-btn" id="resetBtn">🔄重置</button>
     </div>
@@ -221,13 +231,15 @@ function newQuestion(){
     opt1.className="option-btn";opt1.disabled=false;
     opt2.className="option-btn";opt2.disabled=false;
     opt3.className="option-btn";opt3.disabled=false;
-    hintBtn.disabled=false;
+    hintBtn.style.display="block";
     hintBtn.innerText="💡提示";
     hintArea.style.display="none";
     hintArea.innerHTML="";
 
     let idx = Math.floor(Math.random()*dinoList.length);
     currentDino = dinoList[idx];
+    // 当前题目的别名列表（多个别名用" | "分隔，统一转成数组）
+    currentDino._aliases = (currentDino["别名"]||"").split("|").map(s=>s.trim()).filter(Boolean);
     // 从当前题库取2个干扰项
     let others = dinoList.filter(d=>d["中文名称"]!==currentDino["中文名称"]);
     for(let i=others.length-1;i>0;i--){
@@ -267,30 +279,31 @@ function newQuestion(){
     clueWrap.innerHTML = rows.join("");
 }
 
-// 提示按钮：显示别名 + 命名原因
+// 提示按钮：点击后直接替换为命名原因（不显示"命名原因"字样，不显示别名）
 hintBtn.onclick = ()=>{
-    const parts = [];
-    if(currentDino["别名"]) parts.push('<div class="clue-item hint-item" style="margin:6px 0;padding:6px 8px;background:#f7f9f8;border-radius:8px;font-size:15px;line-height:1.6;">🔖别名：'+currentDino["别名"]+'</div>');
-    if(currentDino["命名原因"]) parts.push('<div class="clue-item hint-item" style="margin:6px 0;padding:6px 8px;background:#f7f9f8;border-radius:8px;font-size:15px;line-height:1.6;">📝命名原因：'+currentDino["命名原因"]+'</div>');
-    if(!parts.length) parts.push('<div class="clue-item hint-item" style="margin:6px 0;padding:6px 8px;background:#f7f9f8;border-radius:8px;font-size:15px;">没有更多提示线索</div>');
-    hintArea.innerHTML = parts.join("");
+    const reason = currentDino["命名原因"];
+    hintArea.innerHTML = '<div class="clue-row" style="margin:6px 0;">提示：'+(reason || '暂无更多提示')+'</div>';
     hintArea.style.display = "block";
-    hintBtn.disabled = true;
-    hintBtn.innerText = "💡提示已显示";
+    hintBtn.style.display = "none";
 };
 
 function selectAnswer(selName){
     stat.total +=1;
     let isRight = selName === currentDino["中文名称"];
+    // 答案文本：有别名时附上"又名【别名1】【别名2】"，多个别名用" | "分隔
+    let nameText = "【"+currentDino["中文名称"]+"】";
+    if(currentDino._aliases && currentDino._aliases.length){
+        nameText += "，又名"+currentDino._aliases.map(a=>"【"+a+"】").join("");
+    }
     let base;
     if(isRight){
         stat.ok +=1;
         resultTip.className="result-tip result-correct";
-        base = "🎉答对啦！就是【"+currentDino["中文名称"]+"】";
+        base = "🎉答对啦！就是"+nameText;
     }else{
         stat.no +=1;
         resultTip.className="result-tip result-wrong";
-        base = "❌答错啦！正确答案是【"+currentDino["中文名称"]+"】";
+        base = "❌答错啦！正确答案是"+nameText;
     }
     // 答后追加趣闻
     const fun = currentDino["趣闻"];
