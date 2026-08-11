@@ -29,13 +29,13 @@
             flex: 1;
             background: rgba(255,255,255,0.92);
             border-radius: 12px;
-            padding: 10px 14px;
+            padding: 8px 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
-            gap: 6px;
+            gap: 4px;
         }
         .stat-bar div { white-space: nowrap; }
         .stat-bar .stat-label { color: #000; font-weight: 400; }
@@ -48,8 +48,8 @@
             color: #e74c3c;
             border: none;
             border-radius: 12px;
-            padding: 10px 12px;
-            font-size: 13px;
+            padding: 8px 10px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             white-space: nowrap;
@@ -187,12 +187,12 @@
     <div class="top-bar">
         <div class="stat-bar">
             <div><span class="stat-label">总题</span> <span class="num" id="total">0</span></div>
-            <div><span class="stat-label">正确</span> <span class="num" id="ok">0</span></div>
-            <div><span class="stat-label">错误</span> <span class="num" id="no">0</span></div>
+            <div><span class="stat-label">对</span> <span class="num" id="ok">0</span></div>
+            <div><span class="stat-label">错</span> <span class="num" id="no">0</span></div>
             <div><span class="stat-label">正确率</span> <span class="num" id="rate">0%</span></div>
         </div>
-        <button class="reset-btn" id="modeBtn">🎲名字</button>
-        <button class="reset-btn" id="resetBtn">🔄重置</button>
+        <button class="reset-btn" id="modeBtn">名字</button>
+        <button class="reset-btn" id="resetBtn">重置</button>
     </div>
     <div class="main-card">
         <div class="title" id="titleText">📖根据线索猜猜是什么恐龙？</div>
@@ -401,7 +401,7 @@ opt3.onclick=()=>selectAnswer(opt3.innerText);
 nextBtn.onclick = ()=>newQuestion();
 modeBtn.onclick = ()=>{
     mixedMode = !mixedMode;
-    modeBtn.innerText = mixedMode ? "🎲综合" : "🎲名字";
+    modeBtn.innerText = mixedMode ? "综合" : "名字";
     modeBtn.classList.toggle("on", mixedMode);
     newQuestion();
 };
