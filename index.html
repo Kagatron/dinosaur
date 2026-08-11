@@ -56,6 +56,8 @@
             transition: 0.2s;
         }
         .reset-btn:hover { background: rgba(255,255,255,1); }
+        #modeBtn { color: #2f6fd0; }
+        #modeBtn.on { color: #22a055; font-weight: 700; }
         .main-card {
             flex: 1;
             background: #ffffff;
@@ -189,10 +191,11 @@
             <div><span class="stat-label">错误</span> <span class="num" id="no">0</span></div>
             <div><span class="stat-label">正确率</span> <span class="num" id="rate">0%</span></div>
         </div>
+        <button class="reset-btn" id="modeBtn">🎲名字</button>
         <button class="reset-btn" id="resetBtn">🔄重置</button>
     </div>
     <div class="main-card">
-        <div class="title">📖根据线索猜猜是什么恐龙？</div>
+        <div class="title" id="titleText">📖根据线索猜猜是什么恐龙？</div>
         <div class="clue-wrap" id="clueWrap">加载题库中…</div>
         <button class="hint-btn" id="hintBtn">💡提示</button>
         <div class="hint-area" id="hintArea"></div>
@@ -210,6 +213,9 @@
 let dinoList = [];
 let stat = JSON.parse(localStorage.getItem("dinoQuizStat_v2")||'{"total":0,"ok":0,"no":0}');
 let currentDino = null;
+let currentQType = "guess"; // 当前题型：guess猜名字 / era问时代 / diet问食性
+let currentAnswer = "";     // 当前题型的正确答案（恐龙名/时代/食性）
+let mixedMode = false;      // false:只出猜名字题 true:三种题型混合
 
 const clueWrap = document.getElementById("clueWrap");
 const opt1 = document.getElementById("opt1");
@@ -223,6 +229,8 @@ const domTotal = document.getElementById("total");
 const domOk = document.getElementById("ok");
 const domNo = document.getElementById("no");
 const domRate = document.getElementById("rate");
+const titleText = document.getElementById("titleText");
+const modeBtn = document.getElementById("modeBtn");
 
 function refreshStat(){
     domTotal.innerText = stat.total;
@@ -250,43 +258,73 @@ function newQuestion(){
     currentDino = dinoList[idx];
     // 当前题目的别名列表（多个别名用" | "分隔，统一转成数组）
     currentDino._aliases = (currentDino["别名"]||"").split("|").map(s=>s.trim()).filter(Boolean);
-    // 从当前题库取2个干扰项
+
+    // 随机选题型：默认只出猜名字题；开启"混合题型"后加入问时代/问食性（时代、食性为空值的恐龙不参与对应题型）
+    const types = ["guess"];
+    if(mixedMode){
+        if(currentDino["时代"]) types.push("era");
+        if(currentDino["食性"]) types.push("diet");
+    }
+    currentQType = types[Math.floor(Math.random()*types.length)];
+
+    if(currentQType==="guess"){
+        buildGuessQuestion();
+    }else{
+        buildEraDietQuestion(currentQType);
+    }
+}
+
+// 原题型：看线索猜恐龙名（3选1）
+function buildGuessQuestion(){
     let others = dinoList.filter(d=>d["中文名称"]!==currentDino["中文名称"]);
     for(let i=others.length-1;i>0;i--){
         let j=Math.floor(Math.random()*(i+1));
         [others[i],others[j]]=[others[j],others[i]];
     }
     let distractors = others.slice(0,2);
-    let answerList = [currentDino["中文名称"],distractors[0]["中文名称"],distractors[1]["中文名称"]].sort(()=>Math.random()-0.5);
-
+    currentAnswer = currentDino["中文名称"];
+    let answerList = [currentAnswer,distractors[0]["中文名称"],distractors[1]["中文名称"]].sort(()=>Math.random()-0.5);
     opt1.innerText = answerList[0];
     opt2.innerText = answerList[1];
     opt3.innerText = answerList[2];
+    titleText.innerText = "📖根据线索猜猜是什么恐龙？";
+    buildClueRows();
+}
 
-    // 题面：目/类/科一行、时代/食性一行、体长/体重一行、外形特征、生活习性
+// 新题型：给出恐龙名，问时代/食性（选项固定为3种值）
+function buildEraDietQuestion(qtype){
+    const choices = qtype==="era" ? ["三叠纪","侏罗纪","白垩纪"] : ["肉食","植食","杂食"];
+    currentAnswer = qtype==="era" ? currentDino["时代"] : currentDino["食性"];
+    // 选项固定顺序：时代为 三叠纪/侏罗纪/白垩纪，食性为 肉食/植食/杂食
+    opt1.innerText = choices[0];
+    opt2.innerText = choices[1];
+    opt3.innerText = choices[2];
+    titleText.innerText = qtype==="era"
+        ? "🦕【"+currentDino["中文名称"]+"】生活在哪个时代？"
+        : "🦕【"+currentDino["中文名称"]+"】的食性是什么？";
+    buildClueRows(qtype==="diet");
+}
+
+// 生成线索行；问时代题不显示时代行，问食性题（hideDiet=true）不显示食性行和生活习性行，避免暴露答案
+function buildClueRows(hideDiet){
     const sep = '<span class="sep">·</span>';
     const sp = '<span class="sep">｜</span>';
-
-    // 1. 分类行：只留一个 🔬 图标
     const tax = [currentDino["目"], currentDino["类"], currentDino["科"]].filter(Boolean);
-    // 2. 时代 + 食性
-    const eraDiet = [
-        currentDino["时代细分"] ? "⏳"+currentDino["时代细分"] : "",
-        currentDino["食性"] ? "🍃"+currentDino["食性"] : ""
-    ].filter(Boolean);
-    // 3. 体长 + 体重
+    const rows = [];
+    if(tax.length) rows.push('<div class="clue-row">🔬&nbsp;'+tax.join(sep)+'</div>');
+    if(currentQType!=="era" && currentDino["时代细分"]){
+        rows.push('<div class="clue-row">⏳'+currentDino["时代细分"]+'</div>');
+    }
+    if(!hideDiet && currentDino["食性"]){
+        rows.push('<div class="clue-row">🍃'+currentDino["食性"]+'</div>');
+    }
     const sizeWeight = [
         currentDino["体长"] ? "📏"+currentDino["体长"] : "",
         currentDino["体重"] ? "⚖️"+currentDino["体重"] : ""
     ].filter(Boolean);
-
-    const rows = [];
-    if(tax.length) rows.push('<div class="clue-row">🔬&nbsp;'+tax.join(sep)+'</div>');
-    if(eraDiet.length) rows.push('<div class="clue-row">'+eraDiet.join(sp)+'</div>');
     if(sizeWeight.length) rows.push('<div class="clue-row">'+sizeWeight.join(sp)+'</div>');
     if(currentDino["外形特征"]) rows.push('<div class="clue-row">✨'+currentDino["外形特征"]+'</div>');
-    if(currentDino["生活习性"]) rows.push('<div class="clue-row">🌿'+currentDino["生活习性"]+'</div>');
-    // 提示按钮紧跟线索末尾，属于题目的一部分
+    if(!hideDiet && currentDino["生活习性"]) rows.push('<div class="clue-row">🌿'+currentDino["生活习性"]+'</div>');
     clueWrap.innerHTML = rows.join("");
     clueWrap.appendChild(hintBtn);
     clueWrap.appendChild(hintArea);
@@ -302,21 +340,31 @@ hintBtn.onclick = ()=>{
 
 function selectAnswer(selName){
     stat.total +=1;
-    let isRight = selName === currentDino["中文名称"];
-    // 答案文本：有别名时附上"又名【别名1】【别名2】"，多个别名用" | "分隔
-    let nameText = "【"+currentDino["中文名称"]+"】";
-    if(currentDino._aliases && currentDino._aliases.length){
-        nameText += "，又名"+currentDino._aliases.map(a=>"【"+a+"】").join("");
-    }
+    let isRight = selName === currentAnswer;
+    const dinoName = "【"+currentDino["中文名称"]+"】";
     let base;
+    if(currentQType==="guess"){
+        // 答案文本：有别名时附上"又名【别名1】【别名2】"
+        let nameText = dinoName;
+        if(currentDino._aliases && currentDino._aliases.length){
+            nameText += "，又名"+currentDino._aliases.map(a=>"【"+a+"】").join("");
+        }
+        base = isRight ? "🎉答对啦！就是"+nameText : "❌答错啦！正确答案是"+nameText;
+    }else if(currentQType==="era"){
+        base = isRight
+            ? "🎉答对啦！"+dinoName+"生活在"+currentAnswer+"！"
+            : "❌答错啦！"+dinoName+"生活在"+currentAnswer+"，而不是"+selName+"。";
+    }else{
+        base = isRight
+            ? "🎉答对啦！"+dinoName+"是"+currentAnswer+"性！"
+            : "❌答错啦！"+dinoName+"的食性是"+currentAnswer+"，而不是"+selName+"。";
+    }
     if(isRight){
         stat.ok +=1;
         resultTip.className="result-tip result-correct";
-        base = "🎉答对啦！就是"+nameText;
     }else{
         stat.no +=1;
         resultTip.className="result-tip result-wrong";
-        base = "❌答错啦！正确答案是"+nameText;
     }
     // 答后追加趣闻
     const fun = currentDino["趣闻"];
@@ -325,12 +373,10 @@ function selectAnswer(selName){
     nextBtn.style.display="block";
     opt1.disabled=true;opt2.disabled=true;opt3.disabled=true;
 
-    if(opt1.innerText===currentDino["中文名称"]) opt1.classList.add("right");
-    if(opt2.innerText===currentDino["中文名称"]) opt2.classList.add("right");
-    if(opt3.innerText===currentDino["中文名称"]) opt3.classList.add("right");
-    if(opt1.innerText===selName&&!isRight) opt1.classList.add("wrong");
-    if(opt2.innerText===selName&&!isRight) opt2.classList.add("wrong");
-    if(opt3.innerText===selName&&!isRight) opt3.classList.add("wrong");
+    [opt1,opt2,opt3].forEach(o=>{
+        if(o.innerText===currentAnswer) o.classList.add("right");
+        if(o.innerText===selName&&!isRight) o.classList.add("wrong");
+    });
     refreshStat();
 }
 
@@ -353,6 +399,12 @@ opt1.onclick=()=>selectAnswer(opt1.innerText);
 opt2.onclick=()=>selectAnswer(opt2.innerText);
 opt3.onclick=()=>selectAnswer(opt3.innerText);
 nextBtn.onclick = ()=>newQuestion();
+modeBtn.onclick = ()=>{
+    mixedMode = !mixedMode;
+    modeBtn.innerText = mixedMode ? "🎲综合" : "🎲名字";
+    modeBtn.classList.toggle("on", mixedMode);
+    newQuestion();
+};
 
 document.getElementById("resetBtn").onclick = ()=>{
     stat = {total:0,ok:0,no:0};
